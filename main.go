@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"os"
 )
@@ -37,7 +38,7 @@ type Alert struct {
 }
 
 type AlertNotification struct {
-	Version           int               `json:"version"`
+	Version           string            `json:"version"`
 	GroupKey          string            `json:"groupKey"`
 	TruncatedAlerts   int               `json:"truncatedAlerts"`
 	Status            string            `json:"status"`
@@ -45,7 +46,7 @@ type AlertNotification struct {
 	GroupLabels       map[string]string `json:"groupLabels"`
 	CommonLabels      map[string]string `json:"commonLabels"`
 	CommonAnnotations map[string]string `json:"commonAnnotations"`
-	ExternalURL       string            `json:"externalURL"`
+	GeneratorURL      string            `json:"generatorURL"`
 	Alerts            []Alert           `json:"alerts"`
 }
 
@@ -58,6 +59,12 @@ func logAlert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, a := range notification.Alerts {
-		slog.Info("ALERT", "status", a.Status, "labels", a.Labels, "annotations", a.Annotations)
+		labels := make(map[string]string, len(a.Labels)+len(notification.CommonLabels))
+		maps.Copy(labels, a.Labels)
+		maps.Copy(labels, notification.CommonLabels)
+		annotations := make(map[string]string, len(a.Annotations)+len(notification.CommonAnnotations))
+		maps.Copy(annotations, a.Annotations)
+		maps.Copy(annotations, notification.CommonAnnotations)
+		slog.Info("ALERT", "generator", notification.GeneratorURL, "status", a.Status, "labels", labels, "annotations", annotations)
 	}
 }
